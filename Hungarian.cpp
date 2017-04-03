@@ -22,7 +22,7 @@ HungarianAlgorithm::~HungarianAlgorithm(){}
 //********************************************************//
 // A single function wrapper for solving assignment problem.
 //********************************************************//
-double HungarianAlgorithm::Solve(vector <vector<double> >& DistMatrix, vector<int>& Assignment)
+double HungarianAlgorithm::Solve(vector <vector<double> >& DistMatrix, vector<int>& Assignment, size_t maxDepth)
 {
 	unsigned int nRows = DistMatrix.size();
 	unsigned int nCols = DistMatrix[0].size();
@@ -40,7 +40,7 @@ double HungarianAlgorithm::Solve(vector <vector<double> >& DistMatrix, vector<in
 			distMatrixIn[i + nRows * j] = DistMatrix[i][j];
 	
 	// call solving function
-	assignmentoptimal(assignment, &cost, distMatrixIn, nRows, nCols);
+	assignmentoptimal(assignment, &cost, distMatrixIn, nRows, nCols, maxDepth);
 
 	Assignment.clear();
 	for (unsigned int r = 0; r < nRows; r++)
@@ -55,7 +55,7 @@ double HungarianAlgorithm::Solve(vector <vector<double> >& DistMatrix, vector<in
 //********************************************************//
 // Solve optimal solution for assignment problem using Munkres algorithm, also known as Hungarian Algorithm.
 //********************************************************//
-void HungarianAlgorithm::assignmentoptimal(int *assignment, double *cost, double *distMatrixIn, int nOfRows, int nOfColumns)
+void HungarianAlgorithm::assignmentoptimal(int *assignment, double *cost, double *distMatrixIn, int nOfRows, int nOfColumns, size_t maxDepth)
 {
 	double *distMatrix, *distMatrixTemp, *distMatrixEnd, *columnEnd, value, minValue;
 	bool *coveredColumns, *coveredRows, *starMatrix, *newStarMatrix, *primeMatrix;
@@ -168,7 +168,7 @@ void HungarianAlgorithm::assignmentoptimal(int *assignment, double *cost, double
 	}
 
 	/* move to step 2b */
-	step2b(assignment, distMatrix, starMatrix, newStarMatrix, primeMatrix, coveredColumns, coveredRows, nOfRows, nOfColumns, minDim);
+	step2b(assignment, distMatrix, starMatrix, newStarMatrix, primeMatrix, coveredColumns, coveredRows, nOfRows, nOfColumns, minDim, 1, maxDepth);
 
 	/* compute cost and remove invalid assignments */
 	computeassignmentcost(assignment, cost, distMatrixIn, nOfRows);
@@ -216,8 +216,12 @@ void HungarianAlgorithm::computeassignmentcost(int *assignment, double *cost, do
 }
 
 /********************************************************/
-void HungarianAlgorithm::step2a(int *assignment, double *distMatrix, bool *starMatrix, bool *newStarMatrix, bool *primeMatrix, bool *coveredColumns, bool *coveredRows, int nOfRows, int nOfColumns, int minDim)
+void HungarianAlgorithm::step2a(int *assignment, double *distMatrix, bool *starMatrix, bool *newStarMatrix, bool *primeMatrix, bool *coveredColumns, bool *coveredRows, int nOfRows, int nOfColumns, int minDim, size_t depth, size_t maxDepth)
 {
+	if (depth >= maxDepth) {
+		return;
+	}
+
 	bool *starMatrixTemp, *columnEnd;
 	int col;
 
@@ -236,12 +240,16 @@ void HungarianAlgorithm::step2a(int *assignment, double *distMatrix, bool *starM
 	}
 
 	/* move to step 3 */
-	step2b(assignment, distMatrix, starMatrix, newStarMatrix, primeMatrix, coveredColumns, coveredRows, nOfRows, nOfColumns, minDim);
+	step2b(assignment, distMatrix, starMatrix, newStarMatrix, primeMatrix, coveredColumns, coveredRows, nOfRows, nOfColumns, minDim, depth + 1, maxDepth);
 }
 
 /********************************************************/
-void HungarianAlgorithm::step2b(int *assignment, double *distMatrix, bool *starMatrix, bool *newStarMatrix, bool *primeMatrix, bool *coveredColumns, bool *coveredRows, int nOfRows, int nOfColumns, int minDim)
+void HungarianAlgorithm::step2b(int *assignment, double *distMatrix, bool *starMatrix, bool *newStarMatrix, bool *primeMatrix, bool *coveredColumns, bool *coveredRows, int nOfRows, int nOfColumns, int minDim, size_t depth, size_t maxDepth)
 {
+	if (depth >= maxDepth) {
+		return;
+	}
+
 	int col, nOfCoveredColumns;
 
 	/* count covered columns */
@@ -258,14 +266,18 @@ void HungarianAlgorithm::step2b(int *assignment, double *distMatrix, bool *starM
 	else
 	{
 		/* move to step 3 */
-		step3(assignment, distMatrix, starMatrix, newStarMatrix, primeMatrix, coveredColumns, coveredRows, nOfRows, nOfColumns, minDim);
+		step3(assignment, distMatrix, starMatrix, newStarMatrix, primeMatrix, coveredColumns, coveredRows, nOfRows, nOfColumns, minDim, depth + 1, maxDepth);
 	}
 
 }
 
 /********************************************************/
-void HungarianAlgorithm::step3(int *assignment, double *distMatrix, bool *starMatrix, bool *newStarMatrix, bool *primeMatrix, bool *coveredColumns, bool *coveredRows, int nOfRows, int nOfColumns, int minDim)
+void HungarianAlgorithm::step3(int *assignment, double *distMatrix, bool *starMatrix, bool *newStarMatrix, bool *primeMatrix, bool *coveredColumns, bool *coveredRows, int nOfRows, int nOfColumns, int minDim, size_t depth, size_t maxDepth)
 {
+	if (depth >= maxDepth) {
+		return;
+	}
+
 	bool zerosFound;
 	int row, col, starCol;
 
@@ -289,7 +301,7 @@ void HungarianAlgorithm::step3(int *assignment, double *distMatrix, bool *starMa
 						if (starCol == nOfColumns) /* no starred zero found */
 						{
 							/* move to step 4 */
-							step4(assignment, distMatrix, starMatrix, newStarMatrix, primeMatrix, coveredColumns, coveredRows, nOfRows, nOfColumns, minDim, row, col);
+							step4(assignment, distMatrix, starMatrix, newStarMatrix, primeMatrix, coveredColumns, coveredRows, nOfRows, nOfColumns, minDim, row, col, depth + 1, maxDepth);
 							return;
 						}
 						else
@@ -303,12 +315,16 @@ void HungarianAlgorithm::step3(int *assignment, double *distMatrix, bool *starMa
 	}
 
 	/* move to step 5 */
-	step5(assignment, distMatrix, starMatrix, newStarMatrix, primeMatrix, coveredColumns, coveredRows, nOfRows, nOfColumns, minDim);
+	step5(assignment, distMatrix, starMatrix, newStarMatrix, primeMatrix, coveredColumns, coveredRows, nOfRows, nOfColumns, minDim, depth + 1, maxDepth);
 }
 
 /********************************************************/
-void HungarianAlgorithm::step4(int *assignment, double *distMatrix, bool *starMatrix, bool *newStarMatrix, bool *primeMatrix, bool *coveredColumns, bool *coveredRows, int nOfRows, int nOfColumns, int minDim, int row, int col)
+void HungarianAlgorithm::step4(int *assignment, double *distMatrix, bool *starMatrix, bool *newStarMatrix, bool *primeMatrix, bool *coveredColumns, bool *coveredRows, int nOfRows, int nOfColumns, int minDim, int row, int col, size_t depth, size_t maxDepth)
 {
+	if (depth >= maxDepth) {
+		return;
+	}
+
 	int n, starRow, starCol, primeRow, primeCol;
 	int nOfElements = nOfRows*nOfColumns;
 
@@ -357,12 +373,16 @@ void HungarianAlgorithm::step4(int *assignment, double *distMatrix, bool *starMa
 		coveredRows[n] = false;
 
 	/* move to step 2a */
-	step2a(assignment, distMatrix, starMatrix, newStarMatrix, primeMatrix, coveredColumns, coveredRows, nOfRows, nOfColumns, minDim);
+	step2a(assignment, distMatrix, starMatrix, newStarMatrix, primeMatrix, coveredColumns, coveredRows, nOfRows, nOfColumns, minDim, depth + 1, maxDepth);
 }
 
 /********************************************************/
-void HungarianAlgorithm::step5(int *assignment, double *distMatrix, bool *starMatrix, bool *newStarMatrix, bool *primeMatrix, bool *coveredColumns, bool *coveredRows, int nOfRows, int nOfColumns, int minDim)
+void HungarianAlgorithm::step5(int *assignment, double *distMatrix, bool *starMatrix, bool *newStarMatrix, bool *primeMatrix, bool *coveredColumns, bool *coveredRows, int nOfRows, int nOfColumns, int minDim, size_t depth, size_t maxDepth)
 {
+	if (depth >= maxDepth) {
+		return;
+	}
+
 	double h, value;
 	int row, col;
 
@@ -391,5 +411,5 @@ void HungarianAlgorithm::step5(int *assignment, double *distMatrix, bool *starMa
 				distMatrix[row + nOfRows*col] -= h;
 
 	/* move to step 3 */
-	step3(assignment, distMatrix, starMatrix, newStarMatrix, primeMatrix, coveredColumns, coveredRows, nOfRows, nOfColumns, minDim);
+	step3(assignment, distMatrix, starMatrix, newStarMatrix, primeMatrix, coveredColumns, coveredRows, nOfRows, nOfColumns, minDim, depth + 1, maxDepth);
 }
